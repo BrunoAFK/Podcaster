@@ -13,9 +13,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Create fake .env
+        run: |
+          cat <<EOF > .env
+          # ---------- osnovno ---------- #
+          DOMAIN=doman.tld
+          HOST_PORT=3456
+
+          # ---------- feedovi ---------- #
+          #      URL-podstaza : xml-ime
+          # Kada dodaš novi podcast, samo proširi ovu liniju:
+          # FEEDS=jutarnja-kronika:jk.xml,vijesti:v.xml
+          FEEDS=jutarnja-kronika:jk.xml,vijesti:v.xml
+
+          # ---------- telegram notifikacije ---------- #
+          TELEGRAM_BOT_TOKEN=token:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          TELEGRAM_CHAT_ID=1234567890
+
+          # Omogući/onemogući telegram notifikacije (true/false)
+          TELEGRAM_NOTIFICATIONS_ENABLED=false
+
+          # Tipovi notifikacija koje želiš primati (comma-separated)
+          # Opcije: success, error, info, all
+          TELEGRAM_NOTIFICATION_TYPES=error
+
+          # Episode retention (optional, defaults to 30)
+          MAX_EPISODES=30
+
+          # Log retention in days (optional, defaults to 7)
+          LOG_RETENTION_DAYS=7
+          EOF
+
       - name: Set up Docker Compose
         run: |
-          # Ensure docker-compose is available
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
@@ -24,7 +54,6 @@ jobs:
 
       - name: Run “single” scrape for all feeds
         run: |
-          # for each service ending in _feed, run default scrape
           for svc in $(docker compose config --services | grep '_feed$'); do
             docker compose run --rm "$svc" /app/shared/run.sh --quiet
           done
@@ -43,7 +72,7 @@ jobs:
       - name: Install test requirements
         run: |
           python -m pip install --upgrade pip
-          pip install xmlschema  # optional if you extend tests later
+          pip install xmlschema
 
       - name: Validate generated RSS XML
         run: |
