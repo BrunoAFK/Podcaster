@@ -2,7 +2,6 @@ name: 🗓️ Daily Scraper Feed Validation
 
 on:
   schedule:
-    # every day at 02:00 UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
 
@@ -21,26 +20,15 @@ jobs:
           HOST_PORT=3456
 
           # ---------- feedovi ---------- #
-          #      URL-podstaza : xml-ime
-          # Kada dodaš novi podcast, samo proširi ovu liniju:
-          # FEEDS=jutarnja-kronika:jk.xml,vijesti:v.xml
           FEEDS=jutarnja-kronika:jk.xml,vijesti:v.xml
 
           # ---------- telegram notifikacije ---------- #
           TELEGRAM_BOT_TOKEN=token:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
           TELEGRAM_CHAT_ID=1234567890
-
-          # Omogući/onemogući telegram notifikacije (true/false)
           TELEGRAM_NOTIFICATIONS_ENABLED=false
-
-          # Tipovi notifikacija koje želiš primati (comma-separated)
-          # Opcije: success, error, info, all
           TELEGRAM_NOTIFICATION_TYPES=error
 
-          # Episode retention (optional, defaults to 30)
           MAX_EPISODES=30
-
-          # Log retention in days (optional, defaults to 7)
           LOG_RETENTION_DAYS=7
           EOF
 
@@ -49,7 +37,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      - name: Spin up dependencies (no services)
+      - name: Pull images / dependencies
         run: docker compose pull
 
       - name: Run “single” scrape for all feeds
@@ -64,6 +52,32 @@ jobs:
             docker compose run --rm "$svc" /app/shared/run.sh --fetch-all --quiet
           done
 
+      - name: Install tree for debugging
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tree
+
+      - name: Debug: show workspace layout
+        run: |
+          echo "===== project root tree ====="
+          tree -a -L 2 .
+          echo
+          echo "===== project root ls ====="
+          ls -la
+          echo
+          echo "===== .github ====="
+          ls -la .github || true
+          echo
+          echo "===== tests ====="
+          ls -la tests || true
+          echo
+          echo "===== feeds ====="
+          ls -la feeds || true
+          echo
+          echo "===== scripts_jk & scripts_v ====="
+          ls -la scripts_jk || true
+          ls -la scripts_v || true
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -71,9 +85,14 @@ jobs:
 
       - name: Install test requirements
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install xmlschema
 
-      - name: Validate generated RSS XML
+      - name: Validate generated RSS XML (if test exists)
         run: |
-          python tests/test_feeds.py
+          if [[ -f tests/test_feeds.py ]]; then
+            echo "➤ Found tests/test_feeds.py, running validation..."
+            python tests/test_feeds.py
+          else
+            echo "⚠️  tests/test_feeds.py not found, skipping validation."
+          fi

@@ -1,5 +1,7 @@
 # 🎙️ Croatian Radio Podcast Feed Generator
 
+[![🗓️ Daily Scraper Feed Validation](https://github.com/BrunoAFK/Podcaster/actions/workflows/daily-scraper-test.yml/badge.svg)](https://github.com/BrunoAFK/Podcaster/actions/workflows/daily-scraper-test.yml)
+
 A sophisticated Docker-based system that scrapes Croatian Radio websites and generates RSS podcast feeds for easy consumption in podcast apps.
 
 ## 📋 Table of Contents
