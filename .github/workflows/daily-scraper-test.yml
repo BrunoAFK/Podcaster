@@ -62,9 +62,10 @@ jobs:
           pip install --upgrade pip
           pip install xmlschema
 
-      - name: "Validate generated RSS XML"
+      - name: Run validation and capture logs
         run: |
-          python tests/test_scraper.py
+          mkdir -p feeds
+          python tests/test_scraper.py 2>&1 | tee feeds/validation.log
             
       - name: Publish feed‐validation summary
         if: always()
