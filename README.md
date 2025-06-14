@@ -228,7 +228,3 @@ This project is licensed under the MIT License.
 - **Docker Community** for excellent containerization tools  
 - **Telegram** for notification API  
 - **feedgen** Python library for RSS generation  
-
----
-
-Need anything else? Let me know!

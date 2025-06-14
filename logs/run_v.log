@@ -1,0 +1,22 @@
+
+🎙️  [1;35mV Feed Runner Starting...[0m
+
+ℹ️  [2025-06-14 20:10:01] V Feed Runner Starting...
+⚙️  [2025-06-14 20:10:01] [35m🐍 Checking Python environment...[0m
+⚙️  [2025-06-14 20:10:01] 🐍 Checking Python environment...
+⚙️  [2025-06-14 20:10:01] [35m✅ Python environment OK[0m
+⚙️  [2025-06-14 20:10:01] ✅ Python environment OK
+⚙️  [2025-06-14 20:10:01] [35m📱 Telegram notification configuration:[0m
+⚙️  [2025-06-14 20:10:01] 📱 Telegram notification configuration:
+⚙️  [2025-06-14 20:10:01] [35m   Status: ✅ ENABLED (types: error)[0m
+⚙️  [2025-06-14 20:10:01]    Status: ✅ ENABLED (types: error)
+ℹ️  [2025-06-14 20:10:01] [36mPokrećem v_feed script...[0m
+ℹ️  [2025-06-14 20:10:01] Pokrećem v_feed script...
+ℹ️  [2025-06-14 20:10:01] [36mSvi preduvjeti ispunjeni ✨ (v)[0m
+ℹ️  [2025-06-14 20:10:01] Svi preduvjeti ispunjeni ✨ (v)
+✅ [2025-06-14 20:10:02] [32mScript završen uspješno! 🎉[0m
+✅ [2025-06-14 20:10:02] Script završen uspješno! 🎉
+
+✨ [1;32mSve gotovo![0m
+
+✅ [2025-06-14 20:10:02] Sve gotovo!
