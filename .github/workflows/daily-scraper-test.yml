@@ -51,53 +51,7 @@ jobs:
           for svc in $(docker compose config --services | grep '_feed$'); do
             docker compose run --rm "$svc" /app/shared/run.sh --fetch-all --quiet
           done
-
-      - name: "Install tree for debugging"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y tree
-
-      - name: "Debug: show workspace layout"
-        run: |
-          echo "===== project root tree ====="
-          tree -a -L 2 .
-          echo
-          echo "===== listing project root ====="
-          ls -la .
-          echo
-          echo "===== listing .github directory ====="
-          if [ -d ".github" ]; then
-            ls -la .github
-          else
-            echo "⚠️  .github directory not found"
-          fi
-          echo
-          echo "===== listing tests directory ====="
-          if [ -d "tests" ]; then
-            ls -la tests
-          else
-            echo "⚠️  tests directory not found"
-          fi
-          echo
-          echo "===== listing feeds directory ====="
-          if [ -d "feeds" ]; then
-            ls -la feeds
-          else
-            echo "⚠️  feeds directory not found"
-          fi
-          echo
-          echo "===== listing scripts_jk & scripts_v directories ====="
-          for d in scripts_jk scripts_v; do
-            if [ -d "$d" ]; then
-              echo "Contents of $d:"
-              ls -la "$d"
-            else
-              echo "⚠️  $d directory not found"
-            fi
-          done
-
-
-
+          
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -108,12 +62,7 @@ jobs:
           pip install --upgrade pip
           pip install xmlschema
 
-      - name: "Validate generated RSS XML (if scraper test exists)"
+      - name: "Validate generated RSS XML"
         run: |
-          if [[ -f tests/test_scraper.py ]]; then
-            echo "➤ Found tests/test_scraper.py, running validation..."
-            python tests/test_scraper.py
-          else
-            echo "⚠️  tests/test_scraper.py not found, skipping validation."
-          fi
+          python tests/test_scraper.py
 

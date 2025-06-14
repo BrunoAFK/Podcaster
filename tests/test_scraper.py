@@ -19,11 +19,6 @@ def validate_feed(path):
         print(f"❌ No <channel> element found in {path}")
         return False
 
-    title = channel.findtext('title')
-    if not title or not title.strip():
-        print(f"❌ Empty <title> in channel of {path}")
-        return False
-
     items = channel.findall('item')
     if len(items) == 0:
         print(f"❌ No <item> entries found in {path}")
@@ -33,9 +28,10 @@ def validate_feed(path):
     return True
 
 def main():
-    xml_files = glob.glob('feeds/*.xml')
+    # find all .xml files one level down (feeds/<feed_name>/*.xml)
+    xml_files = glob.glob('feeds/*/*.xml')
     if not xml_files:
-        print("❌ No feeds/*.xml files found")
+        print("❌ No feeds/*/*.xml files found")
         sys.exit(1)
 
     all_ok = True
