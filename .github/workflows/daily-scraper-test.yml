@@ -52,31 +52,51 @@ jobs:
             docker compose run --rm "$svc" /app/shared/run.sh --fetch-all --quiet
           done
 
-      - name: Install tree for debugging
+      - name: "Install tree for debugging"
         run: |
           sudo apt-get update
           sudo apt-get install -y tree
 
-      - name: Debug: show workspace layout
+      - name: "Debug: show workspace layout"
         run: |
           echo "===== project root tree ====="
           tree -a -L 2 .
           echo
-          echo "===== project root ls ====="
-          ls -la
+          echo "===== listing project root ====="
+          ls -la .
           echo
-          echo "===== .github ====="
-          ls -la .github || true
+          echo "===== listing .github directory ====="
+          if [ -d ".github" ]; then
+            ls -la .github
+          else
+            echo "⚠️  .github directory not found"
+          fi
           echo
-          echo "===== tests ====="
-          ls -la tests || true
+          echo "===== listing tests directory ====="
+          if [ -d "tests" ]; then
+            ls -la tests
+          else
+            echo "⚠️  tests directory not found"
+          fi
           echo
-          echo "===== feeds ====="
-          ls -la feeds || true
+          echo "===== listing feeds directory ====="
+          if [ -d "feeds" ]; then
+            ls -la feeds
+          else
+            echo "⚠️  feeds directory not found"
+          fi
           echo
-          echo "===== scripts_jk & scripts_v ====="
-          ls -la scripts_jk || true
-          ls -la scripts_v || true
+          echo "===== listing scripts_jk & scripts_v directories ====="
+          for d in scripts_jk scripts_v; do
+            if [ -d "$d" ]; then
+              echo "Contents of $d:"
+              ls -la "$d"
+            else
+              echo "⚠️  $d directory not found"
+            fi
+          done
+
+
 
       - name: Set up Python
         uses: actions/setup-python@v4
