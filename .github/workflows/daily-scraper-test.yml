@@ -1,29 +1,50 @@
-name: 🗓️ Daily Scraper Smoke Test
+name: 🗓️ Daily Scraper Feed Validation
 
 on:
-  # run daily at midnight UTC (you can adjust the cron)
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:  # also allow manual runs
+    # every day at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 jobs:
-  test-scraper:
+  build-and-test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python 3.x
+      - name: Set up Docker Compose
+        run: |
+          # Ensure docker-compose is available
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Spin up dependencies (no services)
+        run: docker compose pull
+
+      - name: Run “single” scrape for all feeds
+        run: |
+          # for each service ending in _feed, run default scrape
+          for svc in $(docker compose config --services | grep '_feed$'); do
+            docker compose run --rm "$svc" /app/shared/run.sh --quiet
+          done
+
+      - name: Run “catch-all” scrape for all feeds
+        run: |
+          for svc in $(docker compose config --services | grep '_feed$'); do
+            docker compose run --rm "$svc" /app/shared/run.sh --fetch-all --quiet
+          done
+
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: Install dependencies
+      - name: Install test requirements
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install xmlschema  # optional if you extend tests later
 
-      - name: Run scraper smoke‐test
+      - name: Validate generated RSS XML
         run: |
-          python tests/test_scraper.py
+          python tests/test_feeds.py
