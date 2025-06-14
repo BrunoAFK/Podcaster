@@ -108,11 +108,12 @@ jobs:
           pip install --upgrade pip
           pip install xmlschema
 
-      - name: Validate generated RSS XML (if test exists)
+      - name: "Validate generated RSS XML (if scraper test exists)"
         run: |
-          if [[ -f tests/test_feeds.py ]]; then
-            echo "➤ Found tests/test_feeds.py, running validation..."
-            python tests/test_feeds.py
+          if [[ -f tests/test_scraper.py ]]; then
+            echo "➤ Found tests/test_scraper.py, running validation..."
+            python tests/test_scraper.py
           else
-            echo "⚠️  tests/test_feeds.py not found, skipping validation."
+            echo "⚠️  tests/test_scraper.py not found, skipping validation."
           fi
+
