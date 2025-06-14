@@ -1,0 +1,85 @@
+services:
+  # ------------- Nginx (shared for all podcasts) --------------- #
+  web:
+    image: nginx:latest
+    container_name: podcast-nginx
+    entrypoint: >
+      bash -c "/render-conf.sh && exec nginx -g 'daemon off;'"
+    volumes:
+      - ./shared/render-conf.sh:/render-conf.sh:ro
+      - ./feeds:/usr/share/nginx/html:ro
+    ports:
+      - "${HOST_PORT:-8080}:80"
+    env_file: .env
+    environment:
+      TZ: Europe/Zagreb 
+    restart: unless-stopped
+
+  # ------------- Jutarnja Kronika Feed --------------- #
+  jk_feed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PODCAST_NAME: jk
+    image: podcast_feed:jk
+    pull_policy: never
+    container_name: jk_feed
+    env_file: .env
+    environment:
+      FEED_NAME: jk
+      PODCAST_NAME: jk
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      MAX_EPISODES: ${MAX_EPISODES:-30}
+      TZ: Europe/Zagreb 
+    volumes:
+      - ./feeds:/app/feeds
+      - ./logs:/app/logs
+    command: ["/app/shared/start-cron.sh"]
+    restart: unless-stopped
+  
+  # ------------- Vijesti Feed --------------- #
+  v_feed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PODCAST_NAME: v
+    image: podcast_feed:v
+    pull_policy: never
+    container_name: v_feed
+    env_file: .env
+    environment:
+      FEED_NAME: v
+      PODCAST_NAME: v
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      MAX_EPISODES: ${MAX_EPISODES:-30}
+      TZ: Europe/Zagreb 
+    volumes:
+      - ./feeds:/app/feeds
+      - ./logs:/app/logs
+    command: ["/app/shared/start-cron.sh"]
+    restart: unless-stopped
+
+# Helper commands for building and running:
+# 
+# Build specific podcast:
+#   docker compose build jk_feed
+#   docker compose build v_feed
+#
+# Build all:
+#   docker compose build
+#
+# Run specific podcast manually:
+#   docker compose run --rm jk_feed /app/shared/run.sh
+#   docker compose run --rm v_feed /app/shared/run.sh
+#
+# Run with options:
+#   docker compose run --rm jk_feed /app/shared/run.sh --fetch-all
+#   docker compose run --rm jk_feed /app/shared/run.sh --test
+#
+# Force rebuild (ignoring cache):
+#   docker compose build --no-cache jk_feed
+#   docker compose build --no-cache v_feed

@@ -1,0 +1,10 @@
+# Vijesti crontab  
+# Runs every 5 minutes, 24/7
+# Environment setup
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+PYTHONPATH=/usr/local/lib/python3.11/site-packages
+
+# Check for new episodes every 5 minutes, 24/7
+*/5 * * * * . /etc/environment && /app/shared/run.sh >> /app/logs/run_v.log 2>&1
+

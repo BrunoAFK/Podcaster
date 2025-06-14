@@ -1,0 +1,10 @@
+# Jutarnja kronika crontab
+# Runs every 5 minutes during morning show hours (7-8 AM) every day
+# Environment setup
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+PYTHONPATH=/usr/local/lib/python3.11/site-packages
+
+# Check for new episodes during show hours (7-8 AM every day)
+*/5 7-8 * * * . /etc/environment && /app/shared/run.sh >> /app/logs/run_jk.log 2>&1
+
