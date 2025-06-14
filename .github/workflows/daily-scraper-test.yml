@@ -51,7 +51,7 @@ jobs:
           for svc in $(docker compose config --services | grep '_feed$'); do
             docker compose run --rm "$svc" /app/shared/run.sh --fetch-all --quiet
           done
-          
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -65,4 +65,23 @@ jobs:
       - name: "Validate generated RSS XML"
         run: |
           python tests/test_scraper.py
+            
+      - name: Publish feed‐validation summary
+        if: always()
+        run: |
+          {
+            echo "## 📊 Feed Validation Report"
+            echo
+            # how many feeds ran, how many passed/failed
+            PASSED=$(grep -c "✅" feeds/validation.log || echo 0)
+            FAILED=$(grep -c "❌" feeds/validation.log || echo 0)
+            echo "- ✅ Passed: **$PASSED**"
+            echo "- ❌ Failed: **$FAILED**"
+            echo
+            echo "### Detailed results"
+            echo '```'
+            cat feeds/validation.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
 
