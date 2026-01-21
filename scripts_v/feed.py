@@ -5,6 +5,7 @@ from logging.handlers import TimedRotatingFileHandler
 import requests, feedparser
 from dateutil import parser as date_parse
 from feedgen.feed import FeedGenerator
+from zoneinfo import ZoneInfo
 
 # Basic configuration
 DOMAIN = os.environ.get('DOMAIN', 'localhost')
@@ -12,6 +13,7 @@ FEED_NAME = os.environ.get('FEED_NAME', 'v')  # ← MOVED UP: Define before usin
 PODCAST_NAME = os.environ.get('PODCAST_NAME', 'unknown')
 PATH_MAP = {'v': 'vijesti'}  # Updated for Vijesti
 MAX_EPISODES = int(os.environ.get('MAX_EPISODES', '30'))
+CRO_TZ = ZoneInfo("Europe/Zagreb")
 
 # URLs and paths
 BASE_URL = 'https://radio.hrt.hr/slusaonica/vijesti'
@@ -136,36 +138,40 @@ def parse_next(html):
         
         if not episodes:
             raise ValueError("No episodes found in data")
-        
-        ep = episodes[0]
-        
-        # Extract data safely
-        audio_metadata = ep.get('audio', {}).get('metadata', [])
-        if not audio_metadata:
-            raise ValueError("No audio metadata found")
-        
-        mp3 = audio_metadata[0].get('path')
-        title = ep.get('caption', 'Untitled Episode')
-        desc = ep.get('intro', '')
-        
-        # Parse broadcast date
-        bag_items = ep.get('bag', {}).get('contentItems', [])
-        if bag_items:
-            broadcast_start = bag_items[0].get('broadcastStart')
-            if broadcast_start:
-                dt = date_parse.parse(broadcast_start).replace(tzinfo=timezone.utc)
-            else:
-                dt = datetime.now(timezone.utc)
-        else:
-            dt = datetime.now(timezone.utc)
-        
-        if not mp3:
-            raise ValueError("No MP3 URL found")
-        
+        parsed = [ep for ep in (parse_episode(e) for e in episodes) if ep]
+        if not parsed:
+            raise ValueError("No parseable episodes found")
+        mp3, title, desc, dt = max(parsed, key=lambda item: item[3].timestamp())
         return mp3, title, desc, dt
         
     except (json.JSONDecodeError, KeyError, IndexError, ValueError) as e:
         raise ValueError(f"Failed to parse episode data: {e}")
+
+def parse_episode(ep):
+    audio_metadata = ep.get('audio', {}).get('metadata', [])
+    if not audio_metadata:
+        return None
+    mp3 = audio_metadata[0].get('path')
+    if not mp3:
+        return None
+    title = ep.get('caption', 'Untitled Episode')
+    desc = ep.get('intro', '')
+    dt = extract_episode_datetime(ep, mp3)
+    return mp3, title, desc, dt
+
+def extract_episode_datetime(ep, mp3):
+    bag_items = ep.get('bag', {}).get('contentItems', [])
+    if bag_items:
+        broadcast_start = bag_items[0].get('broadcastStart')
+        if broadcast_start:
+            dt = date_parse.parse(broadcast_start)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+    match = re.search(r'(20\d{12})', mp3 or '')
+    if match:
+        return datetime.strptime(match.group(1), "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc)
 
 def latest_id():
     """Get the ID of the latest episode in feed"""
@@ -177,6 +183,13 @@ def latest_id():
         except Exception as e:
             log.warning(f"Could not parse existing feed: {e}")
     return None
+
+def format_title(title, dt):
+    """Format episode title with local (Croatia) time."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    local_time = dt.astimezone(CRO_TZ).strftime('%H:%M')
+    return f"{title} - {local_time}"
 
 def update(mp3, title, desc, dt):
     """Update feed with new episode"""
@@ -220,24 +233,33 @@ def update(mp3, title, desc, dt):
         # Add new episode first
         fe = fg.add_entry()
         fe.id(mp3)
-        fe.title(f"{title} (HRT)")
+        fe.title(f"{format_title(title, dt)} (HRT)")
         fe.description(f"{desc}\n\n---\nSadržaj: © HRT | Neslužbena RSS distribucija")
         fe.enclosure(mp3, 0, 'audio/mpeg')
-        fe.pubDate(dt)
+        fe.pubDate(dt.astimezone(CRO_TZ))  # Use Croatian timezone
         fe.podcast.itunes_author('HRT')
         fe.podcast.itunes_explicit('no')
-        
-        # Add existing entries (preserve order, limit episodes)
-        for entry in existing_entries[:MAX_EPISODES-1]:  # -1 for new episode
+
+        # Sort existing entries by date (newest first) and limit episodes
+        sorted_entries = sorted(
+            existing_entries[:MAX_EPISODES-1],
+            key=lambda e: date_parse.parse(e.published).timestamp(),
+            reverse=True
+        )
+        for entry in sorted_entries:
             fe = fg.add_entry()
             fe.id(entry.id)
             fe.title(entry.title)
             fe.description(entry.get('description', ''))
             fe.enclosure(entry.enclosures[0].href if entry.enclosures else entry.id, 0, 'audio/mpeg')
-            fe.pubDate(date_parse.parse(entry.published))
+            entry_dt = date_parse.parse(entry.published)
+            fe.pubDate(entry_dt.astimezone(CRO_TZ))  # Use Croatian timezone
             fe.podcast.itunes_author('HRT')
             fe.podcast.itunes_explicit('no')
-        
+
+        # Reverse entries to ensure newest-first order (feedgen sorts by pubDate ascending)
+        fg._FeedGenerator__feed_entries.reverse()
+
         # Write the feed
         fg.rss_file(str(FEED_FILE), pretty=True)
         log.info(f'Added new episode: {title}')
@@ -263,36 +285,14 @@ def parse_all_episodes(html):
             raise ValueError("No episodes found in data")
         
         parsed_episodes = []
-        
         for ep in episodes:
             try:
-                # Extract data safely
-                audio_metadata = ep.get('audio', {}).get('metadata', [])
-                if not audio_metadata:
-                    continue
-                
-                mp3 = audio_metadata[0].get('path')
-                title = ep.get('caption', 'Untitled Episode')
-                desc = ep.get('intro', '')
-                
-                # Parse broadcast date
-                bag_items = ep.get('bag', {}).get('contentItems', [])
-                if bag_items:
-                    broadcast_start = bag_items[0].get('broadcastStart')
-                    if broadcast_start:
-                        dt = date_parse.parse(broadcast_start).replace(tzinfo=timezone.utc)
-                    else:
-                        dt = datetime.now(timezone.utc)
-                else:
-                    dt = datetime.now(timezone.utc)
-                
-                if mp3:
-                    parsed_episodes.append((mp3, title, desc, dt))
-                    
+                parsed = parse_episode(ep)
+                if parsed:
+                    parsed_episodes.append(parsed)
             except Exception as e:
                 log.warning(f"Failed to parse episode: {e}")
                 continue
-        
         return parsed_episodes
         
     except (json.JSONDecodeError, KeyError, IndexError, ValueError) as e:
@@ -329,27 +329,30 @@ def update_with_all_episodes(episodes):
         fg.podcast.itunes_image(f"{PUBLIC_URL}/{artwork_filename}")
         
         # Sort episodes by date (newest first)
-        episodes.sort(key=lambda x: x[3], reverse=True)
-        
+        episodes.sort(key=lambda x: x[3].timestamp(), reverse=True)
+
         # Limit episodes if needed
         episodes_to_add = episodes[:MAX_EPISODES]
-        
+
         # Add all episodes
         for mp3, title, desc, dt in episodes_to_add:
             fe = fg.add_entry()
             fe.id(mp3)
-            fe.title(f"{title} (HRT)")
+            fe.title(f"{format_title(title, dt)} (HRT)")
             fe.description(f"{desc}\n\n---\nSadržaj: © HRT | Neslužbena RSS distribucija")
             fe.enclosure(mp3, 0, 'audio/mpeg')
-            fe.pubDate(dt)
+            fe.pubDate(dt.astimezone(CRO_TZ))  # Use Croatian timezone
             fe.podcast.itunes_author('HRT')
             fe.podcast.itunes_explicit('no')
         
+        # Reverse entries to ensure newest-first order (feedgen sorts by pubDate ascending)
+        fg._FeedGenerator__feed_entries.reverse()
+
         # Write the feed
         fg.rss_file(str(FEED_FILE), pretty=True)
         log.info(f'Updated feed with {len(episodes_to_add)} episodes')
         return True
-        
+
     except Exception as e:
         raise Exception(f"Failed to generate feed: {e}")
 

@@ -13,9 +13,12 @@ server {
     server_name DOMAIN_PLACEHOLDER;
     root HTML_MOUNT_PLACEHOLDER;
     index off;
+    add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+    add_header Pragma "no-cache" always;
+    add_header Expires "0" always;
 
     location = / {
-        return 200 "podcast host\n";
+        try_files /index.html =404;
         add_header X-Served-By $hostname;
     }
 MAIN_CONFIG
@@ -54,8 +57,6 @@ for pair in "${PAIRS[@]}"; do
     location = /${slug} {
         alias ${feed_dir}/${xmlfile};
         default_type application/rss+xml;
-        expires 2m;
-        add_header Cache-Control "public, must-revalidate, max-age=120";
         add_header X-Cache-Status "NGINX-RSS";
         add_header X-Feed-File "${xmlfile}";
     }
@@ -63,24 +64,18 @@ for pair in "${PAIRS[@]}"; do
     # ${slug} artwork - primary
     location = /${slug}/${actual_jpgfile} {
         alias ${feed_dir}/${actual_jpgfile};
-        expires 1d;
-        add_header Cache-Control "public, immutable, max-age=86400";
         add_header X-Cache-Status "NGINX-IMG-PRIMARY";
     }
 
     # ${slug} artwork - legacy
     location = /${slug}/${jpgfile} {
         alias ${feed_dir}/${actual_jpgfile};
-        expires 1d;
-        add_header Cache-Control "public, immutable, max-age=86400";
         add_header X-Cache-Status "NGINX-IMG-LEGACY";
     }
 
     # ${slug} artwork - fallback
     location = /${slug}/artwork.jpg {
         alias ${feed_dir}/${actual_jpgfile};
-        expires 1d;
-        add_header Cache-Control "public, immutable, max-age=86400";
         add_header X-Cache-Status "NGINX-IMG-FALLBACK";
     }
 FEED_BLOCK

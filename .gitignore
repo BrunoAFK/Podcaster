@@ -6,3 +6,7 @@
 
 # Logs
 *.log
+*.log.*
+
+# macOS
+.DS_Store
