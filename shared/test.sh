@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Complete test script za sve podcast URLove
-DOMAIN="https://podcast.pavelja.me"
+DOMAIN="https://podcast.afk.place"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -97,7 +97,7 @@ test_url() {
 #!/bin/bash
 
 # COMPLETE PODCAST URL TEST - FIXED VERSION
-DOMAIN="https://podcast.pavelja.me"
+DOMAIN="https://podcast.afk.place"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
