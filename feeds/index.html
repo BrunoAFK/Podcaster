@@ -123,6 +123,27 @@
         max-width: 500px;
       }
 
+      .ownership-note {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border: 1px solid var(--magenta);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--magenta) 10%, transparent);
+        font-size: 12px;
+        color: var(--text);
+      }
+
+      .ownership-note strong {
+        color: var(--magenta);
+      }
+
+      .coming-soon {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--cyan);
+        font-weight: 600;
+      }
+
       /* Status bar */
       .status-bar {
         display: inline-flex;
@@ -148,6 +169,10 @@
         background: #22c55e;
         animation: blink 2s ease-in-out infinite;
       }
+
+      .status-dot.online { background: #22c55e; }
+      .status-dot.degraded { background: #f59e0b; }
+      .status-dot.offline { background: #ef4444; }
 
       @keyframes blink {
         0%, 100% { opacity: 1; }
@@ -235,6 +260,19 @@
       .card-info p {
         color: var(--text-muted);
         font-size: 12px;
+      }
+
+      .source-tag {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--magenta);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
       }
 
       /* Latest Episode */
@@ -325,6 +363,11 @@
         background: #22c55e;
       }
 
+      .copy-btn.error {
+        background: #ef4444;
+        color: #fff;
+      }
+
       /* Actions */
       .actions {
         display: flex;
@@ -367,6 +410,33 @@
 
       footer span {
         color: var(--cyan);
+      }
+
+      .footer-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .footer-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--cyan);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+      }
+
+      .footer-link:hover {
+        border-color: var(--cyan);
+        color: var(--text);
+        transform: translateY(-1px);
       }
 
       /* Responsive */
@@ -412,66 +482,105 @@
       </header>
 
       <section class="hero">
-        <h1>Croatian Radio <span>Feeds</span><br/>You Won't Find Elsewhere</h1>
-        <p>// Unofficial RSS distribution. Subscribe in any podcast app or stream directly.</p>
+        <h1>Curated News & Audio <span>Feeds</span><br/>In One Place</h1>
+        <p>// A curated stream of news, shows and podcasts. Subscribe in any podcast app or listen directly.</p>
       </section>
 
       <div class="status-bar">
         <div class="status-item">
-          <div class="status-dot"></div>
+          <div class="status-dot" id="status-dot"></div>
           <span class="status-label">STATUS:</span>
-          <span class="status-value">ONLINE</span>
+          <span class="status-value" id="status-value">CHECKING...</span>
         </div>
         <div class="status-item">
           <span class="status-label">FEEDS:</span>
-          <span class="status-value">2 ACTIVE</span>
+          <span class="status-value" id="feeds-value">0/0 ACTIVE</span>
         </div>
       </div>
 
       <main class="cards" id="cards"></main>
+      <div class="ownership-note">
+        <strong>IMPORTANT:</strong> "Vijesti" and "Jutarnja kronika" are HRT shows. Audio, titles and brands belong to HRT.
+        This page only provides unofficial RSS access.
+      </div>
 
       <footer>
-        <div>Unofficial RSS distribution. Audio streamed from <span>original sources</span>.</div>
-        <div>v2.0</div>
+        <div>Unofficial RSS distribution.</div>
+        <div class="footer-meta">
+          <a class="footer-link" href="https://pavelja.com" target="_blank" rel="noopener noreferrer">pavelja.com</a>
+          <span>v2.0</span>
+        </div>
       </footer>
     </div>
 
     <script>
       const podcasts = [
-        { slug: 'vijesti', name: 'Vijesti', description: 'Hourly news updates from Croatian Radio' },
-        { slug: 'jutarnja-kronika', name: 'Jutarnja kronika', description: 'Morning news chronicle and analysis' }
+        { slug: 'vijesti', name: 'Vijesti', description: 'Hourly news updates from Croatian Radio', source: 'HRT show' },
+        { slug: 'jutarnja-kronika', name: 'Jutarnja kronika', description: 'Morning news chronicle and analysis', source: 'HRT show' }
       ];
 
       const cardsContainer = document.getElementById('cards');
       const themeToggle = document.getElementById('theme-toggle');
+      const statusValue = document.getElementById('status-value');
+      const feedsValue = document.getElementById('feeds-value');
+      const statusDot = document.getElementById('status-dot');
+      const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const THEME_KEY = 'themePreference';
+      let availableFeeds = 0;
 
-      // Theme handling - follows system preference
       function getSystemTheme() {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        return themeMediaQuery.matches ? 'dark' : 'light';
       }
 
-      function getTheme() {
-        return localStorage.getItem('theme') || getSystemTheme();
+      function getThemePreference() {
+        const saved = localStorage.getItem(THEME_KEY);
+        if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+        return 'system';
       }
 
-      function setTheme(theme) {
+      function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
-        themeToggle.textContent = theme === 'dark' ? 'LIGHT_MODE' : 'DARK_MODE';
-        localStorage.setItem('theme', theme);
       }
 
-      setTheme(getTheme());
+      function renderTheme() {
+        const preference = getThemePreference();
+        const effectiveTheme = preference === 'system' ? getSystemTheme() : preference;
+        applyTheme(effectiveTheme);
+        themeToggle.textContent = `THEME:${preference.toUpperCase()}`;
+      }
 
-      // Listen for system theme changes
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (!localStorage.getItem('theme')) {
-          setTheme(e.matches ? 'dark' : 'light');
-        }
+      renderTheme();
+
+      themeMediaQuery.addEventListener('change', () => {
+        if (getThemePreference() === 'system') renderTheme();
       });
 
       themeToggle.addEventListener('click', () => {
-        setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+        const current = getThemePreference();
+        const next = current === 'system' ? 'dark' : current === 'dark' ? 'light' : 'system';
+        localStorage.setItem(THEME_KEY, next);
+        renderTheme();
       });
+
+      function updateStatus() {
+        feedsValue.textContent = `${availableFeeds}/${podcasts.length} ACTIVE`;
+        statusDot.classList.remove('online', 'degraded', 'offline');
+
+        if (availableFeeds === podcasts.length) {
+          statusValue.textContent = 'ONLINE';
+          statusDot.classList.add('online');
+          return;
+        }
+
+        if (availableFeeds > 0) {
+          statusValue.textContent = 'DEGRADED';
+          statusDot.classList.add('degraded');
+          return;
+        }
+
+        statusValue.textContent = 'OFFLINE';
+        statusDot.classList.add('offline');
+      }
 
       // Date formatting
       function formatDate(dateStr) {
@@ -484,8 +593,59 @@
         }).format(date);
       }
 
+      async function copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.position = 'absolute';
+        area.style.left = '-9999px';
+        document.body.appendChild(area);
+        area.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(area);
+        return success;
+      }
+
+      async function loadLatestEpisode(card, podcast) {
+        const response = await fetch(`/${podcast.slug}`, {
+          headers: { Accept: 'application/rss+xml, application/xml, text/xml' }
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const xml = await response.text();
+        const doc = new DOMParser().parseFromString(xml, 'application/xml');
+        if (doc.querySelector('parsererror')) throw new Error('Invalid XML');
+
+        const item = doc.querySelector('item');
+        if (!item) throw new Error('No items in feed');
+
+        const title = item.querySelector('title')?.textContent || 'Unknown';
+        const pubDate = item.querySelector('pubDate')?.textContent;
+        const enclosure = item.querySelector('enclosure')?.getAttribute('url');
+
+        card.querySelector('.episode-title').textContent = title;
+        card.querySelector('.episode-meta').textContent = formatDate(pubDate);
+
+        if (enclosure) {
+          const audio = card.querySelector('audio');
+          audio.src = enclosure;
+          audio.hidden = false;
+          audio.addEventListener('play', () => {
+            window.umami?.track('play_episode', { slug: podcast.slug });
+          }, { once: true });
+        }
+      }
+
+      updateStatus();
+
       // Create cards
-      podcasts.forEach((podcast, index) => {
+      podcasts.forEach((podcast) => {
         const card = document.createElement('article');
         card.className = 'card';
 
@@ -499,6 +659,7 @@
             <div class="card-info">
               <h2>${podcast.name}</h2>
               <p>${podcast.description}</p>
+              <span class="source-tag">${podcast.source}</span>
             </div>
           </div>
 
@@ -525,14 +686,22 @@
         // Copy button
         const copyBtn = card.querySelector('.copy-btn');
         copyBtn.addEventListener('click', async () => {
-          await navigator.clipboard.writeText(rssUrl);
-          copyBtn.textContent = 'COPIED!';
-          copyBtn.classList.add('copied');
-          window.umami?.track('copy_feed_url', { slug: podcast.slug });
-          setTimeout(() => {
-            copyBtn.textContent = 'COPY';
-            copyBtn.classList.remove('copied');
-          }, 2000);
+          try {
+            const copied = await copyToClipboard(rssUrl);
+            if (!copied) throw new Error('Clipboard not available');
+            copyBtn.textContent = 'COPIED!';
+            copyBtn.classList.add('copied');
+            copyBtn.classList.remove('error');
+            window.umami?.track('copy_feed_url', { slug: podcast.slug });
+          } catch {
+            copyBtn.textContent = 'COPY FAILED';
+            copyBtn.classList.add('error');
+          } finally {
+            setTimeout(() => {
+              copyBtn.textContent = 'COPY';
+              copyBtn.classList.remove('copied', 'error');
+            }, 2200);
+          }
         });
 
         // Track subscribe clicks
@@ -541,33 +710,15 @@
           window.umami?.track('add_to_podcasts', { slug: podcast.slug });
         });
 
-        // Fetch RSS feed
-        fetch(`/${podcast.slug}`)
-          .then(r => r.text())
-          .then(xml => {
-            const doc = new DOMParser().parseFromString(xml, 'application/xml');
-            const item = doc.querySelector('item');
-
-            if (item) {
-              const title = item.querySelector('title')?.textContent || 'Unknown';
-              const pubDate = item.querySelector('pubDate')?.textContent;
-              const enclosure = item.querySelector('enclosure')?.getAttribute('url');
-
-              card.querySelector('.episode-title').textContent = title;
-              card.querySelector('.episode-meta').textContent = formatDate(pubDate);
-
-              if (enclosure) {
-                const audio = card.querySelector('audio');
-                audio.src = enclosure;
-                audio.hidden = false;
-                audio.addEventListener('play', () => {
-                  window.umami?.track('play_episode', { slug: podcast.slug });
-                }, { once: true });
-              }
-            }
+        loadLatestEpisode(card, podcast)
+          .then(() => {
+            availableFeeds += 1;
+            updateStatus();
           })
           .catch(() => {
             card.querySelector('.episode-title').textContent = 'Feed unavailable';
+            card.querySelector('.episode-meta').textContent = 'Try again later.';
+            updateStatus();
           });
 
         cardsContainer.appendChild(card);
