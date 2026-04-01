@@ -1,7 +1,8 @@
 services:
   # ------------- Nginx (shared for all podcasts) --------------- #
   web:
-    image: nginx:latest
+    # nginx:stable-alpine3.23
+    image: nginx@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
     container_name: podcast-nginx
     entrypoint: >
       bash -c "/render-conf.sh && exec nginx -g 'daemon off;'"
