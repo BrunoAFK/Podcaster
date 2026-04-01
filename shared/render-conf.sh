@@ -28,7 +28,7 @@ sed -i "s|DOMAIN_PLACEHOLDER|${DOMAIN}|g" /etc/nginx/conf.d/default.conf
 sed -i "s|HTML_MOUNT_PLACEHOLDER|${HTML_MOUNT}|g" /etc/nginx/conf.d/default.conf
 
 # Process each feed
-printf '%s' "$FEEDS" | tr ',' '\n' | while IFS= read -r pair; do
+printf '%s\n' "$FEEDS" | tr ',' '\n' | while IFS= read -r pair; do
     [ -n "$pair" ] || continue
     slug="${pair%%:*}"
     xmlfile="${pair##*:}"
