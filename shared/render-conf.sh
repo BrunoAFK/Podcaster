@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -e
 
 : "${FEEDS:?FEEDS env var not set}"
@@ -28,8 +28,8 @@ sed -i "s|DOMAIN_PLACEHOLDER|${DOMAIN}|g" /etc/nginx/conf.d/default.conf
 sed -i "s|HTML_MOUNT_PLACEHOLDER|${HTML_MOUNT}|g" /etc/nginx/conf.d/default.conf
 
 # Process each feed
-IFS=',' read -ra PAIRS <<< "$FEEDS"
-for pair in "${PAIRS[@]}"; do
+printf '%s' "$FEEDS" | tr ',' '\n' | while IFS= read -r pair; do
+    [ -n "$pair" ] || continue
     slug="${pair%%:*}"
     xmlfile="${pair##*:}"
     jpgfile="${xmlfile%.xml}.jpg"
@@ -40,7 +40,7 @@ for pair in "${PAIRS[@]}"; do
         echo "⚠️  Warning: feed directory ${feed_dir} does not exist for ${slug}"
         continue
     fi
-    
+
     echo "✅ Found feed directory for ${slug}: ${feed_dir}"
     echo "📁 XML file: ${xmlfile}"
     echo "🖼️  Expected artwork: ${actual_jpgfile}"
@@ -79,7 +79,6 @@ for pair in "${PAIRS[@]}"; do
         add_header X-Cache-Status "NGINX-IMG-FALLBACK";
     }
 FEED_BLOCK
-
 done
 
 # Add utility endpoints

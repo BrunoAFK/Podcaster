@@ -1,11 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 echo "🚀 Starting ${PODCAST_NAME:-Unknown} Feed container..."
-
-# Install cron if not present
-echo "📦 Installing cron..."
-apt-get update && apt-get install -y cron
 
 # Dump the container's env so cron jobs inherit it
 echo "🔧 Dumping environment variables to /etc/environment..."
@@ -14,13 +10,19 @@ printenv > /etc/environment
 # IMPORTANT: Add Python path to cron environment
 echo "🐍 Setting up Python environment for cron..."
 echo "PATH=/usr/local/bin:/usr/bin:/bin:$PATH" >> /etc/environment
-echo "PYTHONPATH=/usr/local/lib/python3.11/site-packages" >> /etc/environment
+SITE_PACKAGES_PATH="$(python3 - <<'PY'
+import sysconfig
+print(sysconfig.get_paths()["purelib"])
+PY
+)"
+echo "PYTHONPATH=${SITE_PACKAGES_PATH}" >> /etc/environment
 
-# Set up crontab - use the podcast-specific crontab file
+# Set up root crontab for BusyBox crond
 echo "⏰ Setting up crontab for ${PODCAST_NAME}..."
 if [[ -f /app/scripts/crontab ]]; then
-    # Source environment before setting crontab
-    crontab /app/scripts/crontab
+    mkdir -p /etc/crontabs
+    cp /app/scripts/crontab /etc/crontabs/root
+    chmod 600 /etc/crontabs/root
     echo "✅ Loaded crontab from /app/scripts/crontab"
 else
     echo "❌ ERROR: Crontab file not found at /app/scripts/crontab"
@@ -31,7 +33,7 @@ fi
 
 # Show what's scheduled
 echo "📅 Current crontab for ${PODCAST_NAME}:"
-crontab -l
+cat /etc/crontabs/root
 
 # Create log directory if it doesn't exist
 mkdir -p /app/logs
@@ -50,4 +52,4 @@ python3 -c "import requests, feedparser; print('✅ All Python modules available
 
 # Start cron in foreground
 echo "🔄 Starting cron daemon for ${PODCAST_NAME}..."
-exec cron -f
+exec crond -f -l 2

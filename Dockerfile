@@ -1,8 +1,12 @@
-FROM python:latest
+# Requested tag: Python 3.12.13 on Alpine 3.23
+# Verified runtime from provided digest currently resolves to Python 3.13.12.
+FROM python:3.12.13-alpine3.23@sha256:bb1f2fdb1065c85468775c9d680dcd344f6442a2d1181ef7916b60a623f11d40 AS builder
 
 # Build argument for podcast name
 ARG PODCAST_NAME
 ENV PODCAST_NAME=${PODCAST_NAME}
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 # Validate that PODCAST_NAME is provided
 RUN if [ -z "$PODCAST_NAME" ]; then \
@@ -11,25 +15,33 @@ RUN if [ -z "$PODCAST_NAME" ]; then \
         exit 1; \
     fi
 
-# Set working directory
 WORKDIR /app
 
-# Copy and install Python dependencies first (for better caching)
-# Each podcast may have different requirements
+# Install Python dependencies into a dedicated virtualenv so the runtime stage
+# only needs the packages required to execute the scraper.
 COPY scripts_${PODCAST_NAME}/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m venv "${VIRTUAL_ENV}" && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Install bash, vim, and other useful tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash \
-    vim \
-    procps \
-    less \
-    curl \
-    openssl \
-    tzdata \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Requested tag: Python 3.12.13 on Alpine 3.23
+# Verified runtime from provided digest currently resolves to Python 3.13.12.
+FROM python:3.12.13-alpine3.23@sha256:bb1f2fdb1065c85468775c9d680dcd344f6442a2d1181ef7916b60a623f11d40
+
+ARG PODCAST_NAME
+ENV PODCAST_NAME=${PODCAST_NAME}
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+WORKDIR /app
+
+# Minimal runtime packages:
+# - bash: existing runner scripts rely on bash features
+# - curl: Telegram notifications
+# - tzdata: Europe/Zagreb timezone data
+RUN apk add --no-cache bash curl tzdata
+
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy general scripts (shared across all podcasts)
 COPY shared/ ./shared/
@@ -43,19 +55,7 @@ RUN if [ -d "/app/shared" ]; then \
     fi && \
     if [ -d "/app/scripts" ]; then \
         find /app/scripts -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null || true; \
-    fi
+    fi && \
+    mkdir -p /app/logs /app/feeds
 
-# Create logs and feeds directories
-RUN mkdir -p /app/logs /app/feeds
-
-# Show build info
-RUN echo "==================================" && \
-    echo "Built for podcast: $PODCAST_NAME" && \
-    echo "==================================" && \
-    ls -la /app/scripts/ && \
-    echo "==================================" && \
-    ls -la /app/shared/ && \
-    echo "=================================="
-
-# Default to bash for interactive debugging
 ENTRYPOINT ["bash"]
